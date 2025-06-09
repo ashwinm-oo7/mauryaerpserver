@@ -24,8 +24,11 @@ app.get("/", (req, res) => {
 });
 const menuRoutes = require("./routes/menuRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
+const qualityRoutes = require("./routes/qualityRoutes");
+const masterRoutes = require("./routes/masterRoutes");
+
 app.use("/api/categories", categoryRoutes);
-const masterRoutes = require("./routes/qualityRoutes");
+app.use("/api/qualityRoutes", qualityRoutes);
 app.use("/api/mastertable", masterRoutes);
 
 // Other middleware above...

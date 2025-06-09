@@ -4,6 +4,9 @@
 /node_modules
 /.pnp
 .pnp.js
+# Git
+.git
+rsync -av --exclude='.git' ./ user@server:/path/to/deploy
 
 # testing
 /coverage

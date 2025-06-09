@@ -21,7 +21,7 @@ const getDynamicModel = async (bname) => {
 };
 
 // Create
-router.post("/", async (req, res) => {
+router.post("/save", async (req, res) => {
   const { bname, ...formFields } = req.body;
   if (!bname) return res.status(400).json({ error: "Missing bname" });
   try {

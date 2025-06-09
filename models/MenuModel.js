@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const menuSchema = new mongoose.Schema(
   {
+    pid: { type: String, unique: true },
     bname: { type: String, required: true },
     tablename: { type: String },
     MenuName: { type: String, default: null }, // If it's a submenu or nested, reference to parent
@@ -24,6 +25,7 @@ const menuSchema = new mongoose.Schema(
         },
         label: { type: String, required: true },
         options: [String], // optional for dropdowns
+        sabtable: { type: String }, // optional, only for dropdown
       },
     ],
   },

@@ -14,6 +14,25 @@ exports.getMenus = async (req, res) => {
   }
 };
 
+// @desc    Get a single menu by ID
+// @route   GET /api/menus/getMenus/:id
+exports.getMenuById = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({ message: "Menu not found" });
+    }
+
+    res.json(menu);
+  } catch (err) {
+    console.error("Error fetching menu by ID:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch menu", error: err.message });
+  }
+};
+
 exports.createMenus = async (req, res) => {
   try {
     const {
@@ -110,7 +129,7 @@ exports.createMenu = async (req, res) => {
       if (!ctrl.label || typeof ctrl.label !== "string") {
         throw new Error("Each control must have a valid label");
       }
-      return {
+      const baseControl = {
         controlType: ctrl.controlType,
         label: ctrl.label,
         options:
@@ -118,9 +137,20 @@ exports.createMenu = async (req, res) => {
             ? ctrl.options
             : [],
       };
+
+      if (
+        ctrl.controlType === "dropdown" &&
+        typeof ctrl.sabtable === "string"
+      ) {
+        baseControl.sabtable = ctrl.sabtable.trim();
+      }
+
+      return baseControl;
     });
+    // const pid = await getNextSequence("saberpmenu_seq"); // Your logic to generate pid
 
     const newMenu = new Menu({
+      // pid,
       bname: bname.trim(),
       tablename,
       MenuName,
@@ -142,7 +172,7 @@ exports.createMenu = async (req, res) => {
 
 // @desc    Update a menu by id
 // @route   PUT /api/menus/:id
-exports.updateMenu = async (req, res) => {
+exports.updateMenuwait = async (req, res) => {
   try {
     const menu = await Menu.findByIdAndUpdate(req.params.id, req.body, {
       new: true, // return the updated document
@@ -151,6 +181,86 @@ exports.updateMenu = async (req, res) => {
     if (!menu) {
       return res.status(404).json({ message: "Menu not found" });
     }
+    res.json(menu);
+  } catch (err) {
+    console.error("Error updating menu:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to update menu", error: err.message });
+  }
+};
+exports.updateMenu = async (req, res) => {
+  try {
+    const {
+      bname,
+      tablename,
+      MenuName,
+      ParentSubmenuName,
+      FormType,
+      Active,
+      controls = [],
+    } = req.body;
+
+    // Validate FormType if provided
+    const allowedFormTypes = ["M", "T", "R", "I"];
+    if (FormType && !allowedFormTypes.includes(FormType)) {
+      return res.status(400).json({
+        message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
+      });
+    }
+
+    // ✅ Clean up controls
+    let sanitizedControls = undefined;
+    if (Array.isArray(controls)) {
+      sanitizedControls = controls.map((ctrl) => {
+        if (!["input", "checkbox", "dropdown"].includes(ctrl.controlType)) {
+          throw new Error(`Invalid controlType: ${ctrl.controlType}`);
+        }
+
+        if (!ctrl.label || typeof ctrl.label !== "string") {
+          throw new Error("Each control must have a valid label");
+        }
+
+        const baseControl = {
+          controlType: ctrl.controlType,
+          label: ctrl.label,
+          options:
+            ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
+              ? ctrl.options
+              : [],
+        };
+
+        if (
+          ctrl.controlType === "dropdown" &&
+          typeof ctrl.sabtable === "string"
+        ) {
+          baseControl.sabtable = ctrl.sabtable.trim();
+        }
+
+        return baseControl;
+      });
+    }
+
+    // Build update object
+    const updateFields = {
+      ...(bname && { bname }),
+      ...(tablename && { tablename }),
+      ...(MenuName && { MenuName }),
+      ...(ParentSubmenuName && { ParentSubmenuName }),
+      ...(FormType && { FormType }),
+      ...(Active !== undefined && { Active }),
+      ...(sanitizedControls && { controls: sanitizedControls }),
+    };
+
+    const menu = await Menu.findByIdAndUpdate(req.params.id, updateFields, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!menu) {
+      return res.status(404).json({ message: "Menu not found" });
+    }
+
     res.json(menu);
   } catch (err) {
     console.error("Error updating menu:", err);
