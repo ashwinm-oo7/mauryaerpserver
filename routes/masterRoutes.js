@@ -94,4 +94,46 @@ router.get("/options/:tablename", async (req, res) => {
   }
 });
 
+// Get all data for a table
+router.get("/options/:tablename/all", async (req, res) => {
+  const { tablename } = req.params;
+  if (!tablename) return res.status(400).json({ error: "Table name required" });
+
+  try {
+    const Model = await getDynamicModelByTableName(tablename);
+    const data = await Model.find({});
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("List fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a record
+router.delete("/delete/:tablename/:id", async (req, res) => {
+  const { tablename, id } = req.params;
+  try {
+    const Model = await getDynamicModelByTableName(tablename);
+    await Model.findByIdAndDelete(id);
+    res.json({ success: true, message: "Deleted" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a record
+router.put("/update/:tablename/:id", async (req, res) => {
+  const { tablename, id } = req.params;
+  const updates = req.body;
+  try {
+    const Model = await getDynamicModelByTableName(tablename);
+    const updated = await Model.findByIdAndUpdate(id, updates, { new: true });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error("Update error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
