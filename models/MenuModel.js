@@ -24,7 +24,7 @@ const menuSchema = new mongoose.Schema(
           required: true,
         },
         label: { type: String, required: true },
-        options: [String], // optional for dropdowns
+        options: [String], // optional for dropdowns or input
         sabtable: { type: String }, // optional, only for dropdown
       },
     ],

@@ -129,14 +129,21 @@ exports.createMenu = async (req, res) => {
       if (!ctrl.label || typeof ctrl.label !== "string") {
         throw new Error("Each control must have a valid label");
       }
+      const needsOptions = ["dropdown", "input"].includes(ctrl.controlType);
+
       const baseControl = {
         controlType: ctrl.controlType,
         label: ctrl.label,
-        options:
-          ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
-            ? ctrl.options
-            : [],
+        // options:
+        //   needsOptions && Array.isArray(ctrl.options) ? ctrl.options : [],
       };
+      if (
+        needsOptions &&
+        Array.isArray(ctrl.options) &&
+        ctrl.options.length > 0
+      ) {
+        baseControl.options = ctrl.options;
+      }
 
       if (
         ctrl.controlType === "dropdown" &&
@@ -224,11 +231,19 @@ exports.updateMenu = async (req, res) => {
         const baseControl = {
           controlType: ctrl.controlType,
           label: ctrl.label,
-          options:
-            ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
-              ? ctrl.options
-              : [],
+          // options:
+          //   ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
+          //     ? ctrl.options
+          //     : [],
         };
+        // ✅ Include options if relevant
+        if (
+          ["input", "dropdown"].includes(ctrl.controlType) &&
+          Array.isArray(ctrl.options) &&
+          ctrl.options.length > 0
+        ) {
+          baseControl.options = ctrl.options;
+        }
 
         if (
           ctrl.controlType === "dropdown" &&
