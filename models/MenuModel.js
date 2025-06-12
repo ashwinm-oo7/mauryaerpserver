@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const menuSchema = new mongoose.Schema(
   {
+    type: {
+      type: String,
+      enum: ["menu", "submenu", "form"],
+      required: true,
+    },
     pid: { type: String, unique: true },
     bname: { type: String, required: true },
     tablename: { type: String },
@@ -25,6 +30,7 @@ const menuSchema = new mongoose.Schema(
         },
         label: { type: String, required: true },
         options: [String], // optional for dropdowns or input
+        required: { type: Boolean, default: false },
         sabtable: { type: String }, // optional, only for dropdown
       },
     ],

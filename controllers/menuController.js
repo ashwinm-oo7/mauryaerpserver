@@ -99,10 +99,48 @@ exports.createMenu = async (req, res) => {
       FormType = "M",
       Active = true,
       controls = [],
+      type = "", // New: Menu type from frontend
     } = req.body;
+    // ✅ Type validation
+    if (type && !["menu", "submenu", "form"].includes(type)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid type. Must be menu, submenu, or form." });
+    }
 
+    if (type === "menu") {
+      if (!MenuName || ParentSubmenuName || tablename) {
+        return res.status(400).json({
+          message: `For type=menu, only 'MenuName' should be filled.`,
+        });
+      }
+    }
+
+    if (type === "submenu") {
+      if (!MenuName || !ParentSubmenuName || tablename) {
+        return res.status(400).json({
+          message: `For type=submenu, 'MenuName' and 'ParentSubmenuName' are required. 'tablename' must be empty.`,
+        });
+      }
+    }
+
+    if (type === "form") {
+      const validFormCaseA = MenuName && !ParentSubmenuName && tablename;
+      const validFormCaseB = MenuName && ParentSubmenuName && tablename;
+      const validFormCaseE = !MenuName && !ParentSubmenuName && tablename;
+      if (!tablename || !(validFormCaseA || validFormCaseB || validFormCaseE)) {
+        return res.status(400).json({
+          message: `For type=form, 'tablename' is required. Must match a valid form combination.`,
+        });
+      }
+    }
     if (!bname || typeof bname !== "string" || bname.trim() === "") {
       return res.status(400).json({ message: "bname is required" });
+    }
+    if (!["menu", "submenu", "form"].includes(type)) {
+      return res.status(400).json({
+        message: `Type must be one of: menu, submenu, form`,
+      });
     }
 
     const allowedFormTypes = ["M", "T", "R", "I"];
@@ -110,6 +148,43 @@ exports.createMenu = async (req, res) => {
       return res.status(400).json({
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
       });
+    }
+    // ✅ Type-based conditional validation
+    if (type === "menu") {
+      if (!MenuName || ParentSubmenuName || tablename) {
+        return res.status(400).json({
+          message: `For type=menu, only 'MenuName' should be filled.`,
+        });
+      }
+    }
+
+    if (type === "submenu") {
+      if (!MenuName || !ParentSubmenuName || tablename) {
+        return res.status(400).json({
+          message: `For type=submenu, 'MenuName' and 'ParentSubmenuName' are required. 'tablename' must be empty.`,
+        });
+      }
+    }
+
+    if (type === "form") {
+      const validFormCaseA = MenuName && !ParentSubmenuName && tablename;
+      const validFormCaseB = MenuName && ParentSubmenuName && tablename;
+      const validFormCaseE = !MenuName && !ParentSubmenuName && tablename;
+      if (!tablename || !(validFormCaseA || validFormCaseB || validFormCaseE)) {
+        return res.status(400).json({
+          message: `For type=form, 'tablename' is required. Must match a valid form combination.`,
+        });
+      }
+    }
+
+    const labels = controls.map((ctrl) => ctrl.label.trim().toLowerCase());
+    const hasDuplicateLabels = labels.some(
+      (label, idx) => labels.indexOf(label) !== idx
+    );
+    if (hasDuplicateLabels) {
+      return res
+        .status(400)
+        .json({ message: "Control labels must be unique within the form." });
     }
 
     const existing = await Menu.findOne({
@@ -129,11 +204,14 @@ exports.createMenu = async (req, res) => {
       if (!ctrl.label || typeof ctrl.label !== "string") {
         throw new Error("Each control must have a valid label");
       }
+
       const needsOptions = ["dropdown", "input"].includes(ctrl.controlType);
 
       const baseControl = {
         controlType: ctrl.controlType,
         label: ctrl.label,
+        required: !!ctrl.required, // ✅ Ensure boolean
+
         // options:
         //   needsOptions && Array.isArray(ctrl.options) ? ctrl.options : [],
       };
@@ -165,6 +243,7 @@ exports.createMenu = async (req, res) => {
       FormType,
       Active,
       controls: sanitizedControls,
+      type, // ✅ store menu type
     });
 
     const savedMenu = await newMenu.save();
@@ -179,23 +258,6 @@ exports.createMenu = async (req, res) => {
 
 // @desc    Update a menu by id
 // @route   PUT /api/menus/:id
-exports.updateMenuwait = async (req, res) => {
-  try {
-    const menu = await Menu.findByIdAndUpdate(req.params.id, req.body, {
-      new: true, // return the updated document
-      runValidators: true,
-    });
-    if (!menu) {
-      return res.status(404).json({ message: "Menu not found" });
-    }
-    res.json(menu);
-  } catch (err) {
-    console.error("Error updating menu:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to update menu", error: err.message });
-  }
-};
 exports.updateMenu = async (req, res) => {
   try {
     const {
@@ -206,6 +268,7 @@ exports.updateMenu = async (req, res) => {
       FormType,
       Active,
       controls = [],
+      type = "",
     } = req.body;
 
     // Validate FormType if provided
@@ -214,6 +277,15 @@ exports.updateMenu = async (req, res) => {
       return res.status(400).json({
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
       });
+    }
+    const labels = controls.map((ctrl) => ctrl.label.trim().toLowerCase());
+    const hasDuplicateLabels = labels.some(
+      (label, idx) => labels.indexOf(label) !== idx
+    );
+    if (hasDuplicateLabels) {
+      return res
+        .status(400)
+        .json({ message: "Control labels must be unique within the form." });
     }
 
     // ✅ Clean up controls
@@ -231,6 +303,8 @@ exports.updateMenu = async (req, res) => {
         const baseControl = {
           controlType: ctrl.controlType,
           label: ctrl.label,
+          required: !!ctrl.required, // ✅ Ensure boolean
+
           // options:
           //   ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
           //     ? ctrl.options
@@ -265,6 +339,7 @@ exports.updateMenu = async (req, res) => {
       ...(FormType && { FormType }),
       ...(Active !== undefined && { Active }),
       ...(sanitizedControls && { controls: sanitizedControls }),
+      ...(type && { type }),
     };
 
     const menu = await Menu.findByIdAndUpdate(req.params.id, updateFields, {
@@ -299,5 +374,23 @@ exports.deleteMenu = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to delete menu", error: err.message });
+  }
+};
+
+exports.updateMenuwait = async (req, res) => {
+  try {
+    const menu = await Menu.findByIdAndUpdate(req.params.id, req.body, {
+      new: true, // return the updated document
+      runValidators: true,
+    });
+    if (!menu) {
+      return res.status(404).json({ message: "Menu not found" });
+    }
+    res.json(menu);
+  } catch (err) {
+    console.error("Error updating menu:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to update menu", error: err.message });
   }
 };
