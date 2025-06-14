@@ -8,12 +8,26 @@ const Saberpmenu = require("../models/MenuModel");
 const dynamicModels = {}; // Cache models
 
 // Get dynamic model based on tablename
-const getDynamicModelByTableName = async (tablename) => {
+const getDynamicModelByTableNamewait = async (tablename) => {
   if (!tablename) throw new Error("Table name not specified");
 
   if (!dynamicModels[tablename]) {
     const schema = new mongoose.Schema({}, { strict: false });
     dynamicModels[tablename] = mongoose.model(tablename, schema, tablename);
+  }
+
+  return dynamicModels[tablename];
+};
+const getDynamicModelByTableName = async (tablename) => {
+  if (!tablename) throw new Error("Table name not specified");
+
+  if (!dynamicModels[tablename]) {
+    if (mongoose.models[tablename]) {
+      dynamicModels[tablename] = mongoose.model(tablename); // Use existing compiled model
+    } else {
+      const schema = new mongoose.Schema({}, { strict: false });
+      dynamicModels[tablename] = mongoose.model(tablename, schema, tablename);
+    }
   }
 
   return dynamicModels[tablename];
@@ -76,9 +90,11 @@ router.get("/options/:tablename", async (req, res) => {
 
   try {
     const schema = new mongoose.Schema({}, { strict: false });
-    const DynamicModel =
-      mongoose.models[tablename] ||
-      mongoose.model(tablename, schema, tablename);
+    // const DynamicModel =
+    //   mongoose.models[tablename] ||
+    //   mongoose.model(tablename, schema, tablename);
+
+    const DynamicModel = await getDynamicModelByTableName(tablename);
 
     const data = await DynamicModel.find({}, { bname: 1 }); // Only return bname
 

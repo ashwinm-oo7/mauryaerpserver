@@ -32,6 +32,12 @@ const menuSchema = new mongoose.Schema(
         options: [String], // optional for dropdowns or input
         required: { type: Boolean, default: false },
         sabtable: { type: String }, // optional, only for dropdown
+        dataType: {
+          type: String,
+          enum: ["nvarchar", "int", "bigint", "decimal"],
+        },
+        size: { type: Number }, // e.g., 4 for int
+        decimals: { type: Number }, // e.g., 2 for decimal
       },
     ],
   },

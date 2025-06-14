@@ -33,62 +33,6 @@ exports.getMenuById = async (req, res) => {
   }
 };
 
-exports.createMenus = async (req, res) => {
-  try {
-    const {
-      bname,
-      tablename = "",
-      MenuName = "",
-      ParentSubmenuName = "",
-      FormType = "M",
-      Active = true,
-    } = req.body;
-
-    // ✅ 1. Validate required field
-    if (!bname || typeof bname !== "string" || bname.trim() === "") {
-      return res
-        .status(400)
-        .json({ message: "bname is required and must be a non-empty string." });
-    }
-
-    // ✅ 2. Validate FormType
-    const allowedFormTypes = ["M", "T", "R", "I"];
-    if (!allowedFormTypes.includes(FormType)) {
-      return res.status(400).json({
-        message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
-      });
-    }
-
-    // ✅ 3. Check for duplicate bname (case-insensitive)
-    const existing = await Menu.findOne({
-      bname: { $regex: new RegExp(`^${bname}$`, "i") },
-    });
-    if (existing) {
-      return res
-        .status(409)
-        .json({ message: `Menu with bname "${bname}" already exists.` });
-    }
-
-    // ✅ 4. Create and save the new menu
-    const newMenu = new Menu({
-      bname: bname.trim(),
-      tablename,
-      MenuName,
-      ParentSubmenuName,
-      FormType,
-      Active,
-    });
-
-    const savedMenu = await newMenu.save();
-    res.status(201).json(savedMenu);
-  } catch (err) {
-    console.error("Error saving menu:", err);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: err.message });
-  }
-};
-
 exports.createMenu = async (req, res) => {
   try {
     const {
@@ -149,35 +93,11 @@ exports.createMenu = async (req, res) => {
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
       });
     }
-    // ✅ Type-based conditional validation
-    if (type === "menu") {
-      if (!MenuName || ParentSubmenuName || tablename) {
-        return res.status(400).json({
-          message: `For type=menu, only 'MenuName' should be filled.`,
-        });
-      }
-    }
 
-    if (type === "submenu") {
-      if (!MenuName || !ParentSubmenuName || tablename) {
-        return res.status(400).json({
-          message: `For type=submenu, 'MenuName' and 'ParentSubmenuName' are required. 'tablename' must be empty.`,
-        });
-      }
-    }
+    const labels = controls.map((ctrl) =>
+      typeof ctrl.label === "string" ? ctrl.label.trim().toLowerCase() : ""
+    );
 
-    if (type === "form") {
-      const validFormCaseA = MenuName && !ParentSubmenuName && tablename;
-      const validFormCaseB = MenuName && ParentSubmenuName && tablename;
-      const validFormCaseE = !MenuName && !ParentSubmenuName && tablename;
-      if (!tablename || !(validFormCaseA || validFormCaseB || validFormCaseE)) {
-        return res.status(400).json({
-          message: `For type=form, 'tablename' is required. Must match a valid form combination.`,
-        });
-      }
-    }
-
-    const labels = controls.map((ctrl) => ctrl.label.trim().toLowerCase());
     const hasDuplicateLabels = labels.some(
       (label, idx) => labels.indexOf(label) !== idx
     );
@@ -201,8 +121,19 @@ exports.createMenu = async (req, res) => {
       if (!["input", "checkbox", "dropdown"].includes(ctrl.controlType)) {
         throw new Error(`Invalid controlType: ${ctrl.controlType}`);
       }
+      if (!ctrl.label.trim()) {
+        res.status(400).json({
+          message: "Control label cannot be empty or whitespace only",
+          error: err.message,
+        });
+      }
+
       if (!ctrl.label || typeof ctrl.label !== "string") {
         throw new Error("Each control must have a valid label");
+      }
+      const allowedDatatypes = ["nvarchar", "int", "bigint", "decimal"];
+      if (ctrl.datatype && !allowedDatatypes.includes(ctrl.datatype)) {
+        throw new Error(`Invalid datatype: ${ctrl.datatype}`);
       }
 
       const needsOptions = ["dropdown", "input"].includes(ctrl.controlType);
@@ -228,6 +159,20 @@ exports.createMenu = async (req, res) => {
         typeof ctrl.sabtable === "string"
       ) {
         baseControl.sabtable = ctrl.sabtable.trim();
+      }
+      if (
+        ctrl.dataType &&
+        ["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)
+      ) {
+        baseControl.dataType = ctrl.dataType;
+
+        if (["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)) {
+          baseControl.size = Number(ctrl.size) || null;
+        }
+
+        if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
+          baseControl.decimals = Number(ctrl.decimals) || 0;
+        }
       }
 
       return baseControl;
@@ -278,7 +223,9 @@ exports.updateMenu = async (req, res) => {
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
       });
     }
-    const labels = controls.map((ctrl) => ctrl.label.trim().toLowerCase());
+    const labels = controls.map((ctrl) =>
+      typeof ctrl.label === "string" ? ctrl.label.trim().toLowerCase() : ""
+    );
     const hasDuplicateLabels = labels.some(
       (label, idx) => labels.indexOf(label) !== idx
     );
@@ -324,6 +271,19 @@ exports.updateMenu = async (req, res) => {
           typeof ctrl.sabtable === "string"
         ) {
           baseControl.sabtable = ctrl.sabtable.trim();
+        }
+        if (ctrl.dataType) {
+          baseControl.dataType = ctrl.dataType;
+
+          if (
+            ["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)
+          ) {
+            baseControl.size = Number(ctrl.size) || null;
+          }
+
+          if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
+            baseControl.decimals = Number(ctrl.decimals) || 0;
+          }
         }
 
         return baseControl;
@@ -392,5 +352,61 @@ exports.updateMenuwait = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to update menu", error: err.message });
+  }
+};
+
+exports.createMenuswait = async (req, res) => {
+  try {
+    const {
+      bname,
+      tablename = "",
+      MenuName = "",
+      ParentSubmenuName = "",
+      FormType = "M",
+      Active = true,
+    } = req.body;
+
+    // ✅ 1. Validate required field
+    if (!bname || typeof bname !== "string" || bname.trim() === "") {
+      return res
+        .status(400)
+        .json({ message: "bname is required and must be a non-empty string." });
+    }
+
+    // ✅ 2. Validate FormType
+    const allowedFormTypes = ["M", "T", "R", "I"];
+    if (!allowedFormTypes.includes(FormType)) {
+      return res.status(400).json({
+        message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
+      });
+    }
+
+    // ✅ 3. Check for duplicate bname (case-insensitive)
+    const existing = await Menu.findOne({
+      bname: { $regex: new RegExp(`^${bname}$`, "i") },
+    });
+    if (existing) {
+      return res
+        .status(409)
+        .json({ message: `Menu with bname "${bname}" already exists.` });
+    }
+
+    // ✅ 4. Create and save the new menu
+    const newMenu = new Menu({
+      bname: bname.trim(),
+      tablename,
+      MenuName,
+      ParentSubmenuName,
+      FormType,
+      Active,
+    });
+
+    const savedMenu = await newMenu.save();
+    res.status(201).json(savedMenu);
+  } catch (err) {
+    console.error("Error saving menu:", err);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: err.message });
   }
 };
