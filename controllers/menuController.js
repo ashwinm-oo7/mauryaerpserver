@@ -87,7 +87,7 @@ exports.createMenu = async (req, res) => {
       });
     }
 
-    const allowedFormTypes = ["M", "T", "R", "I"];
+    const allowedFormTypes = ["M", "MD", "T", "R", "I"];
     if (!allowedFormTypes.includes(FormType)) {
       return res.status(400).json({
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
@@ -169,6 +169,9 @@ exports.createMenu = async (req, res) => {
         if (["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)) {
           baseControl.size = Number(ctrl.size) || null;
         }
+        if (["int", "bigint", "decimal"].includes(ctrl.dataType)) {
+          baseControl.length = Number(ctrl.length) || null;
+        }
 
         if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
           baseControl.decimals = Number(ctrl.decimals) || 0;
@@ -215,9 +218,10 @@ exports.updateMenu = async (req, res) => {
       controls = [],
       type = "",
     } = req.body;
+    console.log("frontend Controls:", controls);
 
     // Validate FormType if provided
-    const allowedFormTypes = ["M", "T", "R", "I"];
+    const allowedFormTypes = ["M", "MD", "T", "R", "I"];
     if (FormType && !allowedFormTypes.includes(FormType)) {
       return res.status(400).json({
         message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
@@ -280,6 +284,9 @@ exports.updateMenu = async (req, res) => {
           ) {
             baseControl.size = Number(ctrl.size) || null;
           }
+          if (["int", "bigint", "decimal"].includes(ctrl.dataType)) {
+            baseControl.length = Number(ctrl.length) || null;
+          }
 
           if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
             baseControl.decimals = Number(ctrl.decimals) || 0;
@@ -289,6 +296,7 @@ exports.updateMenu = async (req, res) => {
         return baseControl;
       });
     }
+    console.log("Sanitized Controls:", sanitizedControls);
 
     // Build update object
     const updateFields = {
@@ -334,79 +342,5 @@ exports.deleteMenu = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to delete menu", error: err.message });
-  }
-};
-
-exports.updateMenuwait = async (req, res) => {
-  try {
-    const menu = await Menu.findByIdAndUpdate(req.params.id, req.body, {
-      new: true, // return the updated document
-      runValidators: true,
-    });
-    if (!menu) {
-      return res.status(404).json({ message: "Menu not found" });
-    }
-    res.json(menu);
-  } catch (err) {
-    console.error("Error updating menu:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to update menu", error: err.message });
-  }
-};
-
-exports.createMenuswait = async (req, res) => {
-  try {
-    const {
-      bname,
-      tablename = "",
-      MenuName = "",
-      ParentSubmenuName = "",
-      FormType = "M",
-      Active = true,
-    } = req.body;
-
-    // ✅ 1. Validate required field
-    if (!bname || typeof bname !== "string" || bname.trim() === "") {
-      return res
-        .status(400)
-        .json({ message: "bname is required and must be a non-empty string." });
-    }
-
-    // ✅ 2. Validate FormType
-    const allowedFormTypes = ["M", "T", "R", "I"];
-    if (!allowedFormTypes.includes(FormType)) {
-      return res.status(400).json({
-        message: `FormType must be one of: ${allowedFormTypes.join(", ")}`,
-      });
-    }
-
-    // ✅ 3. Check for duplicate bname (case-insensitive)
-    const existing = await Menu.findOne({
-      bname: { $regex: new RegExp(`^${bname}$`, "i") },
-    });
-    if (existing) {
-      return res
-        .status(409)
-        .json({ message: `Menu with bname "${bname}" already exists.` });
-    }
-
-    // ✅ 4. Create and save the new menu
-    const newMenu = new Menu({
-      bname: bname.trim(),
-      tablename,
-      MenuName,
-      ParentSubmenuName,
-      FormType,
-      Active,
-    });
-
-    const savedMenu = await newMenu.save();
-    res.status(201).json(savedMenu);
-  } catch (err) {
-    console.error("Error saving menu:", err);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: err.message });
   }
 };

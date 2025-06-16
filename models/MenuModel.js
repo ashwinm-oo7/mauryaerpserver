@@ -14,7 +14,7 @@ const menuSchema = new mongoose.Schema(
     ParentSubmenuName: { type: String, default: null }, // Optional
     FormType: {
       type: String,
-      enum: ["M", "T", "R", "I"],
+      enum: ["M", "MD", "T", "R", "I"],
       default: "M",
       required: true,
     },
@@ -38,6 +38,7 @@ const menuSchema = new mongoose.Schema(
         },
         size: { type: Number }, // e.g., 4 for int
         decimals: { type: Number }, // e.g., 2 for decimal
+        length: { type: Number },
       },
     ],
   },
