@@ -34,11 +34,20 @@ const menuSchema = new mongoose.Schema(
         sabtable: { type: String }, // optional, only for dropdown
         dataType: {
           type: String,
-          enum: ["nvarchar", "int", "bigint", "decimal"],
+          enum: ["nvarchar", "int", "bigint", "decimal", "date", "sequence"],
         },
         size: { type: Number }, // e.g., 4 for int
         decimals: { type: Number }, // e.g., 2 for decimal
         length: { type: Number },
+        defaultDateOption: {
+          type: String,
+          enum: ["currentDate"],
+        },
+
+        conditionalVisibility: { type: String },
+        readOnly: { type: Boolean, default: false },
+        entnoFormat: { type: String },
+        autoGenerate: { type: Boolean },
       },
     ],
   },

@@ -7,17 +7,32 @@ const Saberpmenu = require("../models/MenuModel");
 
 const dynamicModels = {}; // Cache models
 
-// Get dynamic model based on tablename
-const getDynamicModelByTableNamewait = async (tablename) => {
-  if (!tablename) throw new Error("Table name not specified");
+// 🔁 Sequence generator
+const generateNextSequence = async (Model, fieldLabel, formatPattern) => {
+  const prefixMatch = formatPattern.match(/^\D*/)?.[0] || "";
+  const numberLength = formatPattern.length - prefixMatch.length;
 
-  if (!dynamicModels[tablename]) {
-    const schema = new mongoose.Schema({}, { strict: false });
-    dynamicModels[tablename] = mongoose.model(tablename, schema, tablename);
+  // Search latest document with matching prefix
+  const latestDoc = await Model.findOne({
+    [fieldLabel]: { $regex: `^${prefixMatch}` },
+  })
+    .sort({ [fieldLabel]: -1 })
+    .lean();
+
+  let nextNumber = 1;
+
+  if (latestDoc && latestDoc[fieldLabel]) {
+    const latestVal = latestDoc[fieldLabel].slice(prefixMatch.length);
+    const parsed = parseInt(latestVal, 10);
+    if (!isNaN(parsed)) {
+      nextNumber = parsed + 1;
+    }
   }
 
-  return dynamicModels[tablename];
+  const padded = String(nextNumber).padStart(numberLength, "0");
+  return `${prefixMatch}${padded}`;
 };
+
 const getDynamicModelByTableName = async (tablename) => {
   if (!tablename) throw new Error("Table name not specified");
 
@@ -70,6 +85,26 @@ router.post("/save/:tablename", async (req, res) => {
             error: `Duplicate entry: '${formFields.bname}' already exists.`,
           });
         }
+      }
+    }
+
+    // 💡 Auto generate sequence if entnoFormat is provided
+    for (const key in formFields) {
+      if (key.toLowerCase().includes("format")) {
+        const targetField = key.replace(/format$/i, "");
+        const formatPattern = formFields[key];
+
+        // Only set if the value doesn't already exist (user can overwrite manually)
+        if (!formFields[targetField]) {
+          formFields[targetField] = await generateNextSequence(
+            Model,
+            targetField,
+            formatPattern
+          );
+        }
+
+        // Clean up: remove format key from payload
+        delete formFields[key];
       }
     }
 

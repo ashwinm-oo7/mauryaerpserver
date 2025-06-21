@@ -53,7 +53,7 @@ exports.createMenu = async (req, res) => {
     }
 
     if (type === "menu") {
-      if (!MenuName || ParentSubmenuName || tablename) {
+      if (!bname || !FormType || !Active || ParentSubmenuName || tablename) {
         return res.status(400).json({
           message: `For type=menu, only 'MenuName' should be filled.`,
         });
@@ -61,7 +61,7 @@ exports.createMenu = async (req, res) => {
     }
 
     if (type === "submenu") {
-      if (!MenuName || !ParentSubmenuName || tablename) {
+      if (!MenuName || ParentSubmenuName || tablename) {
         return res.status(400).json({
           message: `For type=submenu, 'MenuName' and 'ParentSubmenuName' are required. 'tablename' must be empty.`,
         });
@@ -131,7 +131,7 @@ exports.createMenu = async (req, res) => {
       if (!ctrl.label || typeof ctrl.label !== "string") {
         throw new Error("Each control must have a valid label");
       }
-      const allowedDatatypes = ["nvarchar", "int", "bigint", "decimal"];
+      const allowedDatatypes = ["nvarchar", "int", "bigint", "decimal", "date"];
       if (ctrl.datatype && !allowedDatatypes.includes(ctrl.datatype)) {
         throw new Error(`Invalid datatype: ${ctrl.datatype}`);
       }
@@ -142,6 +142,7 @@ exports.createMenu = async (req, res) => {
         controlType: ctrl.controlType,
         label: ctrl.label,
         required: !!ctrl.required, // ✅ Ensure boolean
+        readOnly: !!ctrl.readOnly, // ✅ Add this line
 
         // options:
         //   needsOptions && Array.isArray(ctrl.options) ? ctrl.options : [],
@@ -162,7 +163,9 @@ exports.createMenu = async (req, res) => {
       }
       if (
         ctrl.dataType &&
-        ["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)
+        ["nvarchar", "int", "bigint", "decimal", "date", "sequence"].includes(
+          ctrl.dataType
+        )
       ) {
         baseControl.dataType = ctrl.dataType;
 
@@ -175,6 +178,23 @@ exports.createMenu = async (req, res) => {
 
         if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
           baseControl.decimals = Number(ctrl.decimals) || 0;
+        }
+        if (ctrl.dataType === "sequence") {
+          baseControl.dataType = ctrl.dataType;
+          baseControl.entnoFormat = ctrl.entnoFormat || "";
+
+          // Set autoGenerate if entnoFormat is provided
+          baseControl.autoGenerate =
+            ctrl.entnoFormat && ctrl.entnoFormat.trim() !== "" ? true : false;
+        }
+        if (ctrl.dataType === "date" && ctrl.defaultDateOption) {
+          const allowedDateOptions = ["currentDate"];
+          if (!allowedDateOptions.includes(ctrl.defaultDateOption)) {
+            throw new Error(
+              `Invalid defaultDateOption: ${ctrl.defaultDateOption}`
+            );
+          }
+          baseControl.defaultDateOption = ctrl.defaultDateOption;
         }
       }
 
@@ -255,6 +275,7 @@ exports.updateMenu = async (req, res) => {
           controlType: ctrl.controlType,
           label: ctrl.label,
           required: !!ctrl.required, // ✅ Ensure boolean
+          readOnly: !!ctrl.readOnly, // ✅ Add this line
 
           // options:
           //   ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
@@ -290,6 +311,23 @@ exports.updateMenu = async (req, res) => {
 
           if (ctrl.dataType === "decimal" && ctrl.decimals !== undefined) {
             baseControl.decimals = Number(ctrl.decimals) || 0;
+          }
+          if (ctrl.dataType === "date" && ctrl.defaultDateOption) {
+            const allowedDateOptions = ["currentDate"];
+            if (!allowedDateOptions.includes(ctrl.defaultDateOption)) {
+              throw new Error(
+                `Invalid defaultDateOption: ${ctrl.defaultDateOption}`
+              );
+            }
+            baseControl.defaultDateOption = ctrl.defaultDateOption;
+          }
+          if (ctrl.dataType === "sequence") {
+            baseControl.dataType = ctrl.dataType;
+            baseControl.entnoFormat = ctrl.entnoFormat || "";
+
+            // Set autoGenerate if entnoFormat is provided
+            baseControl.autoGenerate =
+              ctrl.entnoFormat && ctrl.entnoFormat.trim() !== "" ? true : false;
           }
         }
 
