@@ -1,5 +1,33 @@
 const mongoose = require("mongoose");
 
+const subControlSchema = new mongoose.Schema(
+  {
+    label: { type: String, required: true },
+    controlType: {
+      type: String,
+      enum: ["input", "dropdown", "checkbox"],
+      default: "input",
+    },
+    dataType: {
+      type: String,
+      enum: ["nvarchar", "int", "bigint", "decimal", "date"],
+      default: "nvarchar",
+    },
+    required: { type: Boolean, default: false },
+    readOnly: { type: Boolean, default: false },
+    options: [String], // For dropdown/input options
+    sabtable: { type: String }, // Used for dropdowns
+    size: { type: Number },
+    length: { type: Number },
+    decimals: { type: Number },
+    defaultDateOption: {
+      type: String,
+      enum: ["currentDate"],
+    },
+  },
+  { _id: false }
+);
+
 const menuSchema = new mongoose.Schema(
   {
     type: {
@@ -25,7 +53,7 @@ const menuSchema = new mongoose.Schema(
       {
         controlType: {
           type: String,
-          enum: ["input", "checkbox", "dropdown"],
+          enum: ["input", "checkbox", "dropdown", "grid"],
           required: true,
         },
         label: { type: String, required: true },
@@ -48,7 +76,10 @@ const menuSchema = new mongoose.Schema(
         readOnly: { type: Boolean, default: false },
         entnoFormat: { type: String },
         autoGenerate: { type: Boolean },
+        // ✅ NEW: Sub-controls for grid
+        subControls: [subControlSchema],
       },
+      { _id: false },
     ],
   },
   { timestamps: true }

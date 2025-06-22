@@ -1,38 +1,5 @@
 const Menu = require("../models/MenuModel");
 
-// @desc    Get all menus
-// @route   GET /api/menus
-exports.getMenus = async (req, res) => {
-  try {
-    const menus = await Menu.find({});
-    res.json(menus);
-  } catch (err) {
-    console.error("Error fetching menus:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch menus", error: err.message });
-  }
-};
-
-// @desc    Get a single menu by ID
-// @route   GET /api/menus/getMenus/:id
-exports.getMenuById = async (req, res) => {
-  try {
-    const menu = await Menu.findById(req.params.id);
-
-    if (!menu) {
-      return res.status(404).json({ message: "Menu not found" });
-    }
-
-    res.json(menu);
-  } catch (err) {
-    console.error("Error fetching menu by ID:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch menu", error: err.message });
-  }
-};
-
 exports.createMenu = async (req, res) => {
   try {
     const {
@@ -43,6 +10,7 @@ exports.createMenu = async (req, res) => {
       FormType = "M",
       Active = true,
       controls = [],
+      subControls = [], // ✅ NEW
       type = "", // New: Menu type from frontend
     } = req.body;
     // ✅ Type validation
@@ -118,7 +86,9 @@ exports.createMenu = async (req, res) => {
 
     // ✅ Validate and sanitize controls array if present
     const sanitizedControls = controls.map((ctrl) => {
-      if (!["input", "checkbox", "dropdown"].includes(ctrl.controlType)) {
+      if (
+        !["input", "checkbox", "dropdown", "grid"].includes(ctrl.controlType)
+      ) {
         throw new Error(`Invalid controlType: ${ctrl.controlType}`);
       }
       if (!ctrl.label.trim()) {
@@ -197,10 +167,64 @@ exports.createMenu = async (req, res) => {
           baseControl.defaultDateOption = ctrl.defaultDateOption;
         }
       }
+      // ✅ Grid sub-controls
+      if (ctrl.controlType === "grid" && Array.isArray(ctrl.subControls)) {
+        baseControl.subControls = ctrl.subControls.map((sub) => {
+          if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
+            throw new Error(`Invalid subControlType: ${sub.controlType}`);
+          }
+
+          return {
+            controlType: sub.controlType,
+            label: sub.label.trim(),
+            required: !!sub.required,
+            readOnly: !!sub.readOnly,
+            sabtable: sub.sabtable?.trim(),
+            options: sub.options || [],
+            dataType: sub.dataType,
+            size: sub.size || undefined,
+            length: sub.length || undefined,
+            decimals:
+              sub.dataType === "decimal" ? sub.decimals || 0 : undefined,
+            defaultDateOption:
+              sub.dataType === "date" ? sub.defaultDateOption : undefined,
+          };
+        });
+      }
 
       return baseControl;
     });
     // const pid = await getNextSequence("saberpmenu_seq"); // Your logic to generate pid
+    // ✅ Validate & sanitize subControls (grid columns)
+    const sanitizedSubControls = subControls.map((sub) => {
+      if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
+        throw new Error(`Invalid subControlType: ${sub.controlType}`);
+      }
+      if (!sub.label || typeof sub.label !== "string") {
+        throw new Error("Each subControl must have a valid label");
+      }
+
+      const base = {
+        controlType: sub.controlType,
+        label: sub.label.trim(),
+        required: !!sub.required,
+        readOnly: !!sub.readOnly,
+      };
+
+      if (sub.options && Array.isArray(sub.options)) base.options = sub.options;
+      if (sub.sabtable) base.sabtable = sub.sabtable.trim();
+      if (sub.dataType) {
+        base.dataType = sub.dataType;
+        base.size = sub.size || undefined;
+        base.length = sub.length || undefined;
+        if (sub.dataType === "decimal") base.decimals = sub.decimals || 0;
+        if (sub.dataType === "date" && sub.defaultDateOption) {
+          base.defaultDateOption = sub.defaultDateOption;
+        }
+      }
+
+      return base;
+    });
 
     const newMenu = new Menu({
       // pid,
@@ -211,6 +235,7 @@ exports.createMenu = async (req, res) => {
       FormType,
       Active,
       controls: sanitizedControls,
+      // subControls: sanitizedSubControls,
       type, // ✅ store menu type
     });
 
@@ -221,6 +246,39 @@ exports.createMenu = async (req, res) => {
     res
       .status(500)
       .json({ message: "Internal server error", error: err.message });
+  }
+};
+
+// @desc    Get all menus
+// @route   GET /api/menus
+exports.getMenus = async (req, res) => {
+  try {
+    const menus = await Menu.find({});
+    res.json(menus);
+  } catch (err) {
+    console.error("Error fetching menus:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch menus", error: err.message });
+  }
+};
+
+// @desc    Get a single menu by ID
+// @route   GET /api/menus/getMenus/:id
+exports.getMenuById = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({ message: "Menu not found" });
+    }
+
+    res.json(menu);
+  } catch (err) {
+    console.error("Error fetching menu by ID:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch menu", error: err.message });
   }
 };
 
@@ -263,7 +321,9 @@ exports.updateMenu = async (req, res) => {
     let sanitizedControls = undefined;
     if (Array.isArray(controls)) {
       sanitizedControls = controls.map((ctrl) => {
-        if (!["input", "checkbox", "dropdown"].includes(ctrl.controlType)) {
+        if (
+          !["input", "checkbox", "dropdown", "grid"].includes(ctrl.controlType)
+        ) {
           throw new Error(`Invalid controlType: ${ctrl.controlType}`);
         }
 
@@ -297,7 +357,12 @@ exports.updateMenu = async (req, res) => {
         ) {
           baseControl.sabtable = ctrl.sabtable.trim();
         }
-        if (ctrl.dataType) {
+        if (
+          ctrl.dataType &&
+          ["nvarchar", "int", "bigint", "decimal", "date", "sequence"].includes(
+            ctrl.dataType
+          )
+        ) {
           baseControl.dataType = ctrl.dataType;
 
           if (
@@ -330,10 +395,53 @@ exports.updateMenu = async (req, res) => {
               ctrl.entnoFormat && ctrl.entnoFormat.trim() !== "" ? true : false;
           }
         }
+        // ✅ Handle subControls only if controlType is grid
+        if (ctrl.controlType === "grid" && Array.isArray(ctrl.subControls)) {
+          baseControl.subControls = ctrl.subControls.map((sub) => {
+            if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
+              throw new Error(`Invalid subControlType: ${sub.controlType}`);
+            }
+
+            const base = {
+              controlType: sub.controlType,
+              label: sub.label.trim(),
+              required: !!sub.required,
+              readOnly: !!sub.readOnly,
+            };
+
+            if (
+              ["input", "dropdown"].includes(sub.controlType) &&
+              Array.isArray(sub.options)
+            ) {
+              base.options = sub.options;
+            }
+
+            if (sub.controlType === "dropdown" && sub.sabtable) {
+              base.sabtable = sub.sabtable.trim();
+            }
+
+            if (sub.dataType) {
+              base.dataType = sub.dataType;
+              base.size = sub.size || undefined;
+              base.length = sub.length || undefined;
+
+              if (sub.dataType === "decimal") {
+                base.decimals = sub.decimals || 0;
+              }
+
+              if (sub.dataType === "date" && sub.defaultDateOption) {
+                base.defaultDateOption = sub.defaultDateOption;
+              }
+            }
+
+            return base;
+          });
+        }
 
         return baseControl;
       });
     }
+
     console.log("Sanitized Controls:", sanitizedControls);
 
     // Build update object
