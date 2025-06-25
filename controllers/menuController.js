@@ -110,7 +110,8 @@ exports.createMenu = async (req, res) => {
 
       const baseControl = {
         controlType: ctrl.controlType,
-        label: ctrl.label,
+        label: ctrl.label.trim(),
+        header: ctrl.header,
         required: !!ctrl.required, // ✅ Ensure boolean
         readOnly: !!ctrl.readOnly, // ✅ Add this line
 
@@ -172,6 +173,13 @@ exports.createMenu = async (req, res) => {
         baseControl.subControls = ctrl.subControls.map((sub) => {
           if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
             throw new Error(`Invalid subControlType: ${sub.controlType}`);
+          }
+          if (sub.operationRule && typeof sub.operationRule === "object") {
+            base.operationRule = {
+              leftOperand: sub.operationRule.leftOperand,
+              operator: sub.operationRule.operator,
+              rightOperand: sub.operationRule.rightOperand,
+            };
           }
 
           return {
@@ -248,40 +256,6 @@ exports.createMenu = async (req, res) => {
       .json({ message: "Internal server error", error: err.message });
   }
 };
-
-// @desc    Get all menus
-// @route   GET /api/menus
-exports.getMenus = async (req, res) => {
-  try {
-    const menus = await Menu.find({});
-    res.json(menus);
-  } catch (err) {
-    console.error("Error fetching menus:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch menus", error: err.message });
-  }
-};
-
-// @desc    Get a single menu by ID
-// @route   GET /api/menus/getMenus/:id
-exports.getMenuById = async (req, res) => {
-  try {
-    const menu = await Menu.findById(req.params.id);
-
-    if (!menu) {
-      return res.status(404).json({ message: "Menu not found" });
-    }
-
-    res.json(menu);
-  } catch (err) {
-    console.error("Error fetching menu by ID:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch menu", error: err.message });
-  }
-};
-
 // @desc    Update a menu by id
 // @route   PUT /api/menus/:id
 exports.updateMenu = async (req, res) => {
@@ -405,16 +379,17 @@ exports.updateMenu = async (req, res) => {
             const base = {
               controlType: sub.controlType,
               label: sub.label.trim(),
+              header: sub.header,
               required: !!sub.required,
               readOnly: !!sub.readOnly,
             };
 
-            if (
-              ["input", "dropdown"].includes(sub.controlType) &&
-              Array.isArray(sub.options)
-            ) {
-              base.options = sub.options;
-            }
+            // if (
+            //   ["input", "dropdown"].includes(sub.controlType) &&
+            //   Array.isArray(sub.options)
+            // ) {
+            //   base.options = sub.options;
+            // }
 
             if (sub.controlType === "dropdown" && sub.sabtable) {
               base.sabtable = sub.sabtable.trim();
@@ -431,6 +406,13 @@ exports.updateMenu = async (req, res) => {
 
               if (sub.dataType === "date" && sub.defaultDateOption) {
                 base.defaultDateOption = sub.defaultDateOption;
+              }
+              if (sub.operationRule && typeof sub.operationRule === "object") {
+                base.operationRule = {
+                  leftOperand: sub.operationRule.leftOperand,
+                  operator: sub.operationRule.operator,
+                  rightOperand: sub.operationRule.rightOperand,
+                };
               }
             }
 
@@ -471,6 +453,39 @@ exports.updateMenu = async (req, res) => {
     res
       .status(500)
       .json({ message: "Failed to update menu", error: err.message });
+  }
+};
+
+// @desc    Get all menus
+// @route   GET /api/menus
+exports.getMenus = async (req, res) => {
+  try {
+    const menus = await Menu.find({});
+    res.json(menus);
+  } catch (err) {
+    console.error("Error fetching menus:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch menus", error: err.message });
+  }
+};
+
+// @desc    Get a single menu by ID
+// @route   GET /api/menus/getMenus/:id
+exports.getMenuById = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({ message: "Menu not found" });
+    }
+
+    res.json(menu);
+  } catch (err) {
+    console.error("Error fetching menu by ID:", err);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch menu", error: err.message });
   }
 };
 

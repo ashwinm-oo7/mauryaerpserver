@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const subControlSchema = new mongoose.Schema(
   {
     label: { type: String, required: true },
+    header: { type: String, required: false },
     controlType: {
       type: String,
       enum: ["input", "dropdown", "checkbox"],
@@ -15,7 +16,6 @@ const subControlSchema = new mongoose.Schema(
     },
     required: { type: Boolean, default: false },
     readOnly: { type: Boolean, default: false },
-    options: [String], // For dropdown/input options
     sabtable: { type: String }, // Used for dropdowns
     size: { type: Number },
     length: { type: Number },
@@ -23,6 +23,16 @@ const subControlSchema = new mongoose.Schema(
     defaultDateOption: {
       type: String,
       enum: ["currentDate"],
+    },
+
+    // ✅ NEW: Add operationRule
+    operationRule: {
+      leftOperand: { type: String },
+      operator: {
+        type: String,
+        enum: ["+", "-", "*", "/"],
+      },
+      rightOperand: { type: String },
     },
   },
   { _id: false }

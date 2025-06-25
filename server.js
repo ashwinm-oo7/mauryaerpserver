@@ -4,6 +4,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const connectDB = require("./config/db");
+const backupRoute = require("./routes/backupRoute");
 
 // Import routes when ready
 // const productRoutes = require("./routes/productRoutes");
@@ -26,6 +27,7 @@ const menuRoutes = require("./routes/menuRoutes");
 const masterRoutes = require("./routes/masterRoutes");
 
 app.use("/api/mastertable", masterRoutes);
+app.use("/api", backupRoute);
 
 // Other middleware above...
 app.use("/api/menus", menuRoutes);

@@ -4,6 +4,10 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const Saberpmenu = require("../models/MenuModel");
+const {
+  generateSabid,
+  getFinancialYearYCode,
+} = require("../utils/sabidGenerator");
 
 const dynamicModels = {}; // Cache models
 
@@ -108,12 +112,33 @@ router.post("/save/:tablename", async (req, res) => {
       }
     }
 
+    if (!formFields.sabid) {
+      formFields.sabid = await generateSabid(tablename);
+    }
+    if (!formFields.ycode) {
+      formFields.ycode = getFinancialYearYCode();
+    }
     const doc = new Model(formFields);
+    console.log("FinalValue", doc);
+
     const saved = await doc.save();
     res.status(201).json({ success: true, data: saved });
   } catch (err) {
     console.error("Error saving form data:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
+// Update a record
+router.put("/update/:tablename/:id", async (req, res) => {
+  const { tablename, id } = req.params;
+  const updates = req.body;
+  try {
+    const Model = await getDynamicModelByTableName(tablename);
+    const updated = await Model.findByIdAndUpdate(id, updates, { new: true });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error("Update error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -169,20 +194,6 @@ router.delete("/delete/:tablename/:id", async (req, res) => {
     res.json({ success: true, message: "Deleted" });
   } catch (err) {
     console.error("Delete error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Update a record
-router.put("/update/:tablename/:id", async (req, res) => {
-  const { tablename, id } = req.params;
-  const updates = req.body;
-  try {
-    const Model = await getDynamicModelByTableName(tablename);
-    const updated = await Model.findByIdAndUpdate(id, updates, { new: true });
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    console.error("Update error:", err);
     res.status(500).json({ error: err.message });
   }
 });
