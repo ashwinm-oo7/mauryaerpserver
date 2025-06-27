@@ -20,6 +20,8 @@ const subControlSchema = new mongoose.Schema(
     size: { type: Number },
     length: { type: Number },
     decimals: { type: Number },
+    sumRequired: { type: Boolean },
+
     defaultDateOption: {
       type: String,
       enum: ["currentDate"],

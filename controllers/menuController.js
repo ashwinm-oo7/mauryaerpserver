@@ -174,7 +174,13 @@ exports.createMenu = async (req, res) => {
           if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
             throw new Error(`Invalid subControlType: ${sub.controlType}`);
           }
-          if (sub.operationRule && typeof sub.operationRule === "object") {
+          if (
+            sub.operationRule &&
+            typeof sub.operationRule === "object" &&
+            sub.operationRule.leftOperand &&
+            sub.operationRule.rightOperand &&
+            ["+", "-", "*", "/"].includes(sub.operationRule.operator)
+          ) {
             base.operationRule = {
               leftOperand: sub.operationRule.leftOperand,
               operator: sub.operationRule.operator,
@@ -196,6 +202,7 @@ exports.createMenu = async (req, res) => {
               sub.dataType === "decimal" ? sub.decimals || 0 : undefined,
             defaultDateOption:
               sub.dataType === "date" ? sub.defaultDateOption : undefined,
+            sumRequired: !!sub.sumRequired, // ✅ Save sumRequired
           };
         });
       }
@@ -382,14 +389,15 @@ exports.updateMenu = async (req, res) => {
               header: sub.header,
               required: !!sub.required,
               readOnly: !!sub.readOnly,
+              // sumRequired: !!sub.sumRequired,
             };
 
-            // if (
-            //   ["input", "dropdown"].includes(sub.controlType) &&
-            //   Array.isArray(sub.options)
-            // ) {
-            //   base.options = sub.options;
-            // }
+            if (
+              ["int", "decimal", "bigint"].includes(sub.dataType) &&
+              sub.sumRequired
+            ) {
+              base.sumRequired = !!sub.sumRequired;
+            }
 
             if (sub.controlType === "dropdown" && sub.sabtable) {
               base.sabtable = sub.sabtable.trim();
@@ -407,7 +415,13 @@ exports.updateMenu = async (req, res) => {
               if (sub.dataType === "date" && sub.defaultDateOption) {
                 base.defaultDateOption = sub.defaultDateOption;
               }
-              if (sub.operationRule && typeof sub.operationRule === "object") {
+              if (
+                sub.operationRule &&
+                typeof sub.operationRule === "object" &&
+                sub.operationRule.leftOperand &&
+                sub.operationRule.rightOperand &&
+                ["+", "-", "*", "/"].includes(sub.operationRule.operator)
+              ) {
                 base.operationRule = {
                   leftOperand: sub.operationRule.leftOperand,
                   operator: sub.operationRule.operator,
