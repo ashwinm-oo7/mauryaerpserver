@@ -1,4 +1,8 @@
 const Menu = require("../models/MenuModel");
+const menuSchema = require("../models/MenuModel").schema;
+
+const getModel = require("../utils/getModel");
+const { generateSabidMenu } = require("../utils/sabidGenerator");
 
 exports.createMenu = async (req, res) => {
   try {
@@ -14,6 +18,8 @@ exports.createMenu = async (req, res) => {
       type = "", // New: Menu type from frontend
     } = req.body;
     // ✅ Type validation
+    const Menu = getModel(req, "Menu", menuSchema, "saberpmenus");
+
     if (type && !["menu", "submenu", "form"].includes(type)) {
       return res
         .status(400)
@@ -114,6 +120,7 @@ exports.createMenu = async (req, res) => {
         header: ctrl.header,
         required: !!ctrl.required, // ✅ Ensure boolean
         readOnly: !!ctrl.readOnly, // ✅ Add this line
+        visiblity: ctrl.visiblity !== false, // ✅ handle visiblity
 
         // options:
         //   needsOptions && Array.isArray(ctrl.options) ? ctrl.options : [],
@@ -181,7 +188,7 @@ exports.createMenu = async (req, res) => {
             sub.operationRule.rightOperand &&
             ["+", "-", "*", "/"].includes(sub.operationRule.operator)
           ) {
-            base.operationRule = {
+            sub.operationRule = {
               leftOperand: sub.operationRule.leftOperand,
               operator: sub.operationRule.operator,
               rightOperand: sub.operationRule.rightOperand,
@@ -192,6 +199,7 @@ exports.createMenu = async (req, res) => {
             controlType: sub.controlType,
             label: sub.label.trim(),
             required: !!sub.required,
+            visiblity: sub.visiblity !== false, // ✅ handle visiblity
             readOnly: !!sub.readOnly,
             sabtable: sub.sabtable?.trim(),
             options: sub.options || [],
@@ -203,13 +211,26 @@ exports.createMenu = async (req, res) => {
             defaultDateOption:
               sub.dataType === "date" ? sub.defaultDateOption : undefined,
             sumRequired: !!sub.sumRequired, // ✅ Save sumRequired
+
+            // ✅ ADD THIS
+            ...(sub.operationRule &&
+              typeof sub.operationRule === "object" &&
+              sub.operationRule.leftOperand &&
+              sub.operationRule.rightOperand &&
+              ["+", "-", "*", "/"].includes(sub.operationRule.operator) && {
+                operationRule: {
+                  leftOperand: sub.operationRule.leftOperand,
+                  operator: sub.operationRule.operator,
+                  rightOperand: sub.operationRule.rightOperand,
+                },
+              }),
           };
         });
       }
 
       return baseControl;
     });
-    // const pid = await getNextSequence("saberpmenu_seq"); // Your logic to generate pid
+    const pid = await generateSabidMenu("saberpmenus"); // Your logic to generate pid
     // ✅ Validate & sanitize subControls (grid columns)
     const sanitizedSubControls = subControls.map((sub) => {
       if (!["input", "checkbox", "dropdown"].includes(sub.controlType)) {
@@ -242,7 +263,7 @@ exports.createMenu = async (req, res) => {
     });
 
     const newMenu = new Menu({
-      // pid,
+      pid,
       bname: bname.trim(),
       tablename,
       MenuName,
@@ -278,6 +299,7 @@ exports.updateMenu = async (req, res) => {
       type = "",
     } = req.body;
     console.log("frontend Controls:", controls);
+    const Menu = getModel(req, "Menu", menuSchema, "saberpmenus");
 
     // Validate FormType if provided
     const allowedFormTypes = ["M", "MD", "T", "R", "I"];
@@ -317,6 +339,7 @@ exports.updateMenu = async (req, res) => {
           label: ctrl.label,
           required: !!ctrl.required, // ✅ Ensure boolean
           readOnly: !!ctrl.readOnly, // ✅ Add this line
+          visiblity: ctrl.visiblity !== false, // ✅ handle visiblity
 
           // options:
           //   ctrl.controlType === "dropdown" && Array.isArray(ctrl.options)
@@ -389,6 +412,8 @@ exports.updateMenu = async (req, res) => {
               header: sub.header,
               required: !!sub.required,
               readOnly: !!sub.readOnly,
+              visiblity: sub.visiblity !== false, // ✅ handle visiblity
+
               // sumRequired: !!sub.sumRequired,
             };
 
@@ -474,7 +499,10 @@ exports.updateMenu = async (req, res) => {
 // @route   GET /api/menus
 exports.getMenus = async (req, res) => {
   try {
+    console.log("getmenus", res);
+    const Menu = getModel(req, "Menu", menuSchema, "saberpmenus");
     const menus = await Menu.find({});
+    console.log("getmenus123", menus);
     res.json(menus);
   } catch (err) {
     console.error("Error fetching menus:", err);
@@ -488,6 +516,8 @@ exports.getMenus = async (req, res) => {
 // @route   GET /api/menus/getMenus/:id
 exports.getMenuById = async (req, res) => {
   try {
+    const Menu = getModel(req, "Menu", menuSchema, "saberpmenus");
+
     const menu = await Menu.findById(req.params.id);
 
     if (!menu) {

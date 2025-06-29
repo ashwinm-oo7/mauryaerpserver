@@ -15,6 +15,7 @@ const subControlSchema = new mongoose.Schema(
       default: "nvarchar",
     },
     required: { type: Boolean, default: false },
+    visiblity: { type: Boolean, default: true },
     readOnly: { type: Boolean, default: false },
     sabtable: { type: String }, // Used for dropdowns
     size: { type: Number },
@@ -71,6 +72,7 @@ const menuSchema = new mongoose.Schema(
         label: { type: String, required: true },
         options: [String], // optional for dropdowns or input
         required: { type: Boolean, default: false },
+        visiblity: { type: Boolean, default: true },
         sabtable: { type: String }, // optional, only for dropdown
         dataType: {
           type: String,

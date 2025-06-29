@@ -16,6 +16,16 @@ const getModel = async (tablename) => {
 
   return dynamicModels[tablename];
 };
+// Counter schema (used only internally)
+const counterSchema = new mongoose.Schema(
+  {
+    _id: { type: String }, // e.g., "saberpmenus-25"
+    seq: { type: Number, default: 0 },
+  },
+  { collection: "counters" }
+);
+const Counter =
+  mongoose.models.Counter || mongoose.model("Counter", counterSchema);
 
 const generateSabid = async (tablename) => {
   const Model = await getModel(tablename);
@@ -49,8 +59,30 @@ const getFinancialYearYCode = (date = new Date()) => {
   const ycode = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
   return ycode;
 };
+// Main sabid generator with atomic increment
+const generateSabidMenu = async (tablename) => {
+  if (!tablename) throw new Error("Table name required for sabid");
+
+  const ycode = getFinancialYearYCode();
+  const counterId = `${tablename}-${ycode}`;
+
+  const updatedCounter = await Counter.findOneAndUpdate(
+    { _id: counterId },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const nextSeq = updatedCounter.seq;
+  const sabid = `${ycode}${String(nextSeq).padStart(3, "0")}`; // e.g., 2526001
+
+  return sabid;
+};
+const isValidGmail = (email) => /^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email);
 
 module.exports = {
   generateSabid,
   getFinancialYearYCode,
+  generateSabidMenu,
+  getModel,
+  isValidGmail,
 };

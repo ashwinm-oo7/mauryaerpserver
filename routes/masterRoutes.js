@@ -4,10 +4,15 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const Saberpmenu = require("../models/MenuModel");
+const menuSchema = require("../models/MenuModel").schema;
+
 const {
   generateSabid,
   getFinancialYearYCode,
+  generateSabidMenu,
 } = require("../utils/sabidGenerator");
+const getModel = require("../utils/getModel");
+const modelCache = new Map();
 
 const dynamicModels = {}; // Cache models
 
@@ -37,15 +42,32 @@ const generateNextSequence = async (Model, fieldLabel, formatPattern) => {
   return `${prefixMatch}${padded}`;
 };
 
-const getDynamicModelByTableName = async (tablename) => {
+const getDynamicModelByTableName = (tablename, dbConn) => {
+  const dbName = dbConn.name;
+  const key = `${dbName}_${tablename}`;
+
+  if (!modelCache.has(key)) {
+    const schema = new mongoose.Schema({}, { strict: false });
+    const model = dbConn.model(tablename, schema, tablename);
+    modelCache.set(key, model);
+  }
+
+  return modelCache.get(key);
+};
+
+const getDynamicModelByTableNamewait = async (tablename, dbConn) => {
   if (!tablename) throw new Error("Table name not specified");
 
-  if (!dynamicModels[tablename]) {
+  if (!dbConn.dynamicModels[tablename]) {
     if (mongoose.models[tablename]) {
-      dynamicModels[tablename] = mongoose.model(tablename); // Use existing compiled model
+      dbConn.dynamicModels[tablename] = mongoose.model(tablename); // Use existing compiled model
     } else {
       const schema = new mongoose.Schema({}, { strict: false });
-      dynamicModels[tablename] = mongoose.model(tablename, schema, tablename);
+      dbConn.dynamicModels[tablename] = mongoose.model(
+        tablename,
+        schema,
+        tablename
+      );
     }
   }
 
@@ -56,6 +78,7 @@ const getDynamicModelByTableName = async (tablename) => {
 router.post("/save/:tablename", async (req, res) => {
   const { tablename } = req.params;
   const formFields = req.body;
+  const Saberpmenu = getModel(req, "Menu", menuSchema, "saberpmenus");
 
   if (!tablename) return res.status(400).json({ error: "Missing tablename" });
 
@@ -68,7 +91,7 @@ router.post("/save/:tablename", async (req, res) => {
         .status(404)
         .json({ error: `No form found for tablename: ${tablename}` });
     }
-    const Model = await getDynamicModelByTableName(tablename);
+    const Model = await getDynamicModelByTableName(tablename, req.dbConn);
     console.log("formFields", formFields);
 
     // 2. Validate: if FormType is 'M', then bname is required
@@ -115,6 +138,10 @@ router.post("/save/:tablename", async (req, res) => {
     if (!formFields.sabid) {
       formFields.sabid = await generateSabid(tablename);
     }
+    if (!formFields.pid) {
+      formFields.pid = await generateSabidMenu(tablename);
+    }
+
     if (!formFields.ycode) {
       formFields.ycode = getFinancialYearYCode();
     }
@@ -133,7 +160,7 @@ router.put("/update/:tablename/:id", async (req, res) => {
   const { tablename, id } = req.params;
   const updates = req.body;
   try {
-    const Model = await getDynamicModelByTableName(tablename);
+    const Model = await getDynamicModelByTableName(tablename, req.dbConn);
     const updated = await Model.findByIdAndUpdate(id, updates, { new: true });
     res.json({ success: true, data: updated });
   } catch (err) {
@@ -154,7 +181,10 @@ router.get("/options/:tablename", async (req, res) => {
     //   mongoose.models[tablename] ||
     //   mongoose.model(tablename, schema, tablename);
 
-    const DynamicModel = await getDynamicModelByTableName(tablename);
+    const DynamicModel = await getDynamicModelByTableName(
+      tablename,
+      req.dbConn
+    );
 
     const data = await DynamicModel.find({}, { bname: 1 }); // Only return bname
 
@@ -176,7 +206,7 @@ router.get("/options/:tablename/all", async (req, res) => {
   if (!tablename) return res.status(400).json({ error: "Table name required" });
 
   try {
-    const Model = await getDynamicModelByTableName(tablename);
+    const Model = await getDynamicModelByTableName(tablename, req.dbConn);
     const data = await Model.find({});
     res.json({ success: true, data });
   } catch (err) {
@@ -189,7 +219,7 @@ router.get("/options/:tablename/all", async (req, res) => {
 router.delete("/delete/:tablename/:id", async (req, res) => {
   const { tablename, id } = req.params;
   try {
-    const Model = await getDynamicModelByTableName(tablename);
+    const Model = await getDynamicModelByTableName(tablename, req.dbConn);
     await Model.findByIdAndDelete(id);
     res.json({ success: true, message: "Deleted" });
   } catch (err) {

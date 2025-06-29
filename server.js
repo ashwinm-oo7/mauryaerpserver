@@ -25,12 +25,22 @@ app.get("/", (req, res) => {
 });
 const menuRoutes = require("./routes/menuRoutes");
 const masterRoutes = require("./routes/masterRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const userDataRoutes = require("./routes/userDataRoutes");
+const authRoutes = require("./routes/authRoutes");
+const attachDB = require("./middleware/attachDB");
 
-app.use("/api/mastertable", masterRoutes);
-app.use("/api", backupRoute);
+app.use("/auth", authRoutes);
+// app.use("/user", userDataRoutes);
+
+app.use("/admin", adminRoutes);
+
+app.use("/user", attachDB); // Optional: if needed
+app.use("/api/mastertable", attachDB, masterRoutes);
+app.use("/api/menus", attachDB, menuRoutes);
+app.use("/api", attachDB, backupRoute);
 
 // Other middleware above...
-app.use("/api/menus", menuRoutes);
 
 // Example to mount routes when ready
 // app.use("/api/products", productRoutes);
