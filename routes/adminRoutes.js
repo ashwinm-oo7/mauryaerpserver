@@ -2,13 +2,19 @@ const express = require("express");
 const router = express.Router();
 const {
   assignAccess,
-  getVerifiedUsers,
+  getVerifiedUseradmin,
 } = require("../controllers/adminController");
+const verifyToken = require("../middleware/authMiddleware");
 
-// GET verified users
-router.get("/verified-users", getVerifiedUsers);
+// middleware/isAdmin.js
+const isAdmin = (req, res, next) => {
+  if (!req.user?.isAdmin) {
+    return res.status(403).json({ success: false, message: "Admin only" });
+  }
+  next();
+};
 
-// POST assign access to user
-router.post("/assign-access", assignAccess);
+router.get("/verified-users", verifyToken, isAdmin, getVerifiedUseradmin);
+router.post("/assign-access/:userId", verifyToken, isAdmin, assignAccess);
 
 module.exports = router;
