@@ -36,10 +36,20 @@ exports.loginWithOtp = async (req, res) => {
       dbs: user.companies.map((c) => c.db),
       isAdmin: user.isAdmin,
       role: user.role,
+      userAccess: user?.userAccess,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1d",
+    });
+    const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: "7d",
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     user.otp = null;
@@ -50,6 +60,7 @@ exports.loginWithOtp = async (req, res) => {
       token,
       email: user.email, // add this
       isAdmin: user.isAdmin,
+      userAccess: user.userAccess, // ✅ Add this line
       companies: user.companies,
       dbs: user.companies.map((c) => c.db),
       message: "Login successful",
@@ -60,12 +71,22 @@ exports.loginWithOtp = async (req, res) => {
   }
 };
 
+const validateEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
 exports.sendOtpController = async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email || !email.endsWith("@gmail.com"))
+    if (!email)
       return res.status(400).json({ success: false, message: "Invalid Gmail" });
+    if (!validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid Gmail address",
+      });
+    }
 
     const otp = generateOtp();
 

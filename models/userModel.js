@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
     role: { type: String, default: "pending" }, // 'pending', 'approved', 'admin'
+    userAccess: { type: String, default: "User" }, // <--- Add this
     companies: [companySchema], // NEW FIELD
   },
   { timestamps: true }

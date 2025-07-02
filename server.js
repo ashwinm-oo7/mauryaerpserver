@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const connectDB = require("./config/db");
 const backupRoute = require("./routes/backupRoute");
+const cookieParser = require("cookie-parser");
 
 // Import routes when ready
 // const productRoutes = require("./routes/productRoutes");
@@ -18,6 +19,7 @@ connectDB();
 app.use(cors());
 app.use(morgan("dev"));
 app.use(bodyParser.json());
+app.use(cookieParser());
 
 // Routes
 app.get("/", (req, res) => {
@@ -38,7 +40,7 @@ app.use("/admin", adminRoutes);
 app.use("/user", attachDB); // Optional: if needed
 app.use("/api/mastertable", attachDB, masterRoutes);
 app.use("/api/menus", attachDB, menuRoutes);
-app.use("/api", attachDB, backupRoute);
+app.use("/api/backup", attachDB, backupRoute);
 
 // Other middleware above...
 

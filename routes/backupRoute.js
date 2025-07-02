@@ -4,6 +4,7 @@ const { backupDatabase } = require("./backupService");
 const fs = require("fs");
 const path = require("path");
 const AdmZip = require("adm-zip");
+const requireRoles = require("../middleware/requireRole");
 
 router.get("/download", (req, res) => {
   const { folder, path: folderPath } = req.query;
@@ -50,19 +51,23 @@ router.get("/list", (req, res) => {
   res.json({ backups: allBackups });
 });
 
-router.post("/backup", async (req, res) => {
-  const { path: backupPath } = req.body;
+router.post(
+  "/backup",
+  requireRoles(["Developer", "Admin"]),
+  async (req, res) => {
+    const { path: backupPath } = req.body;
 
-  if (!backupPath) {
-    return res.status(400).json({ message: "Backup path is required" });
-  }
+    if (!backupPath) {
+      return res.status(400).json({ message: "Backup path is required" });
+    }
 
-  try {
-    const result = await backupDatabase(backupPath);
-    res.status(200).json({ message: result });
-  } catch (error) {
-    res.status(500).json({ error });
+    try {
+      const result = await backupDatabase(backupPath);
+      res.status(200).json({ message: result });
+    } catch (error) {
+      res.status(500).json({ error });
+    }
   }
-});
+);
 
 module.exports = router;

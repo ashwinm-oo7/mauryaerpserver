@@ -1,3 +1,4 @@
+const AuditLog = require("../models/AuditLog");
 const User = require("../models/userModel");
 
 exports.getVerifiedUseradmin = async (req, res) => {
@@ -28,11 +29,11 @@ exports.getVerifiedUseradmin = async (req, res) => {
   }
 };
 
-exports.assignAccess = async (req, res) => {
+exports.assignAccesswait = async (req, res) => {
   try {
     const { userId } = req.params;
     console.log(userId);
-    const { role, companies } = req.body;
+    const { role, companies, userAccess } = req.body;
 
     if (!userId || !Array.isArray(companies) || companies.length === 0) {
       return res.status(400).json({ success: false, message: "Invalid data" });
@@ -48,6 +49,8 @@ exports.assignAccess = async (req, res) => {
 
     user.companies = companies;
     user.role = role;
+    user.userAccess = userAccess; // Save the new field
+
     await user.save();
 
     return res.json({ success: true, message: "Access assigned successfully" });
@@ -56,7 +59,26 @@ exports.assignAccess = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+exports.assignAccess = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const update = req.body;
 
+    const user = await User.findByIdAndUpdate(userId, update, { new: true });
+
+    await AuditLog.create({
+      action: "AssignAccess",
+      userEmail: req.user.email,
+      userId: req.user.userId,
+      details: { assignedTo: user.email, updates: update },
+    });
+
+    res.json({ success: true, message: "Access updated", user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Error assigning access" });
+  }
+};
 exports.getVerifiedUserswait = async (req, res) => {
   try {
     const users = await User.find({ isVerified: true });
