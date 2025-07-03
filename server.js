@@ -16,7 +16,14 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGIN || process.env.ALLOWED_ORIGIN1,
+    credentials: true, // ✅ allows cookies to be sent
+  })
+);
+
 app.use(morgan("dev"));
 app.use(bodyParser.json());
 app.use(cookieParser());

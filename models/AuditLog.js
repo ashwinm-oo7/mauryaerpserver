@@ -4,7 +4,11 @@ const mongoose = require("mongoose");
 const auditLogSchema = new mongoose.Schema({
   action: String,
   userEmail: String,
-  userId: mongoose.Schema.Types.ObjectId,
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  status: String, // "SUCCESS" or "FAILURE"
+  ipAddress: String,
+  userAgent: String,
+  message: String, // optional notes
   timestamp: { type: Date, default: Date.now },
   details: mongoose.Schema.Types.Mixed,
 });

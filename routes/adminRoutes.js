@@ -18,8 +18,27 @@ const isAdmin = (req, res, next) => {
 router.get("/verified-users", verifyToken, isAdmin, getVerifiedUseradmin);
 router.post("/assign-access/:userId", verifyToken, isAdmin, assignAccess);
 router.get("/audit-logs", verifyToken, isAdmin, async (req, res) => {
-  const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
-  res.json({ success: true, logs });
+  try {
+    const { page = 1, limit = 20, status, start, end } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+    if (start || end) {
+      query.timestamp = {};
+      if (start) query.timestamp.$gte = new Date(start);
+      if (end) query.timestamp.$lte = new Date(end);
+    }
+
+    const logs = await AuditLog.find(query)
+      .sort({ timestamp: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const total = await AuditLog.countDocuments(query);
+    res.json({ success: true, logs, total });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to fetch logs" });
+  }
 });
 
 module.exports = router;

@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
     otp: { type: String },
     isVerified: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
-    role: { type: String, default: "pending" }, // 'pending', 'approved', 'admin'
+    role: { type: String, default: "pending" }, // 'pending', 'approved'
     userAccess: { type: String, default: "User" }, // <--- Add this
     companies: [companySchema], // NEW FIELD
   },
