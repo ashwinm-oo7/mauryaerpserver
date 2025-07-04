@@ -22,7 +22,7 @@ const subControlSchema = new mongoose.Schema(
     length: { type: Number },
     decimals: { type: Number },
     sumRequired: { type: Boolean },
-
+    formula: { type: String },
     defaultDateOption: {
       type: String,
       enum: ["currentDate"],
@@ -90,6 +90,16 @@ const menuSchema = new mongoose.Schema(
         readOnly: { type: Boolean, default: false },
         entnoFormat: { type: String },
         autoGenerate: { type: Boolean },
+        // ✅ NEW: Add operationRule
+        operationRule: {
+          leftOperand: { type: String },
+          operator: {
+            type: String,
+            enum: ["+", "-", "*", "/"],
+          },
+          rightOperand: { type: String },
+        },
+
         // ✅ NEW: Sub-controls for grid
         subControls: [subControlSchema],
       },

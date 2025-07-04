@@ -368,6 +368,19 @@ exports.updateMenu = async (req, res) => {
           )
         ) {
           baseControl.dataType = ctrl.dataType;
+          if (
+            ctrl.operationRule &&
+            typeof ctrl.operationRule === "object" &&
+            ctrl.operationRule.leftOperand &&
+            ctrl.operationRule.rightOperand &&
+            ["+", "-", "*", "/"].includes(ctrl.operationRule.operator)
+          ) {
+            baseControl.operationRule = {
+              leftOperand: ctrl.operationRule.leftOperand,
+              operator: ctrl.operationRule.operator,
+              rightOperand: ctrl.operationRule.rightOperand,
+            };
+          }
 
           if (
             ["nvarchar", "int", "bigint", "decimal"].includes(ctrl.dataType)
@@ -413,7 +426,7 @@ exports.updateMenu = async (req, res) => {
               required: !!sub.required,
               readOnly: !!sub.readOnly,
               visiblity: sub.visiblity !== false, // ✅ handle visiblity
-
+              formula: sub.formula,
               // sumRequired: !!sub.sumRequired,
             };
 
